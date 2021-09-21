@@ -1,0 +1,152 @@
+! MMCS Assessment 02
+! Team 21
+! Song Feng (s2052211)
+! Ishaan Jolly (s1665110)
+! Finished Date : 2020-10-21
+! Due Date : 2020-10-23
+
+model Assessment02
+uses "mmxprs"
+
+declarations
+  number_of_courses = 30
+  number_of_rooms = 6
+  number_of_days = 5
+  number_of_periods = 6
+  number_of_curricula = 14
+  number_of_teachers = 24
+  course = 1.. number_of_courses
+  room = 1.. number_of_rooms
+  day = 1.. number_of_days
+  period = 1.. number_of_periods
+  curricula = 1.. number_of_curricula
+  teacher = 1.. number_of_teachers
+
+  course_name : array(course) of string
+  room_name : array(room) of string
+  curricula_name : array(curricula) of string
+
+  Number_of_student : array(course) of real
+  Number_of_class : array(course) of real
+  Min_days : array(course) of real
+  Capacity : array(room) of real
+
+  A : array(course, teacher) of integer    ! 30 rows(courses) 24 columns(teachers)
+  B : array(course, curricula) of integer  ! 30 rows(courses) 14 columns(curriculas)
+
+  X : array(course, day, period, room) of mpvar    ! =1 if assign the course c to day d period p in room c, =0 otherwise
+  Y : array(course, day) of mpvar                  ! =1 if course c has at least one class on day d, =0 otherwise
+
+  penalty_1st : array(course, day, period) of mpvar
+  penalty_2nd : array(course) of mpvar
+end-declarations
+
+initialisations from "Team21_assessment02.dat"
+  Number_of_student Number_of_class Min_days Capacity A B course_name room_name curricula_name
+end-initialisations
+
+! objective function
+total_penalty := sum(c in course, d in day, p in period) penalty_1st(c,d,p) + sum(c in course) 5 * penalty_2nd(c)
+
+! our aim is to minimize(total_penalty)
+
+! penalty_1st  (the number of student over the capacity of the room)
+forall(c in course, d in day, p in period) do
+  penalty_1st(c,d,p) >= sum(r in room) ( X(c,d,p,r) * Number_of_student(c) - X(c,d,p,r) * Capacity(r) )
+  penalty_1st(c,d,p) >= 0
+end-do
+
+! Whether there is course c on day d
+forall(c in course, d in day) do
+  Y(c,d) <= 1
+  Y(c,d) >= 0
+  Y(c,d) <= sum(p in period, r in room) X(c,d,p,r)
+end-do
+
+! penalty_2nd  (the of the course spread days below the minimum number of days)
+forall(c in course) do
+  penalty_2nd(c) >= Min_days(c) - sum(d in day) Y(c,d)
+  penalty_2nd(c) >= 0
+end-do
+
+
+! constraints
+
+! binary constraints
+forall(c in course, d in day, p in period, r in room) X(c,d,p,r) is_binary
+
+
+! No teacher has to teach two or more classes in the same period.
+forall(d in day, p in period, t in teacher) sum(c in course, r in room) X(c,d,p,r) * A(c,t) <= 1
+
+
+! No room is occupied by two or more classes in the same period.
+forall(d in day, p in period, r in room) sum(c in course) X(c,d,p,r) <= 1
+
+
+! No courses in the same curriculum happen in the same period.
+forall(d in day, p in period, u in curricula) sum(c in course, r in room) X(c,d,p,r) * B(c,u) <= 1
+
+
+! The number of class constraint (the number of classes of a given course should be equal to #Courses)
+forall(c in course) sum(d in day, p in period, r in room) X(c,d,p,r) = Number_of_class(c)
+
+
+! 6 unavailability constraints
+forall(c in course, d in day, p in period, r in room) do
+  if (c = 1) then
+    X(c,5,p,r) = 0
+  end-if
+end-do
+
+forall(c in course, d in day, p in period, r in room) do
+  if (c = 4) then
+    X(c,1,p,r) = 0
+  end-if
+end-do
+
+forall(c in course, d in day, p in period, r in room) do
+  if (c = 9) then
+    X(c,4,p,r) = 0
+  end-if
+end-do
+
+forall(c in course, d in day, p in period, r in room) do
+  if (c = 10 and d = 4) then
+    X(c,d,p,r) = 0
+  elif (c = 10 and d = 3 and p > 2) then
+    X(c,d,p,r) = 0
+  end-if
+end-do
+
+forall(c in course, d in day, p in period, r in room) do
+  if (c = 15 and d = 5) then
+    X(c,d,p,r) = 0
+  elif (c = 15 and d = 4 and p > 2) then
+    X(c,d,p,r) = 0
+  end-if
+end-do
+
+forall(c in course, d in day, p in period, r in room) do
+  if (c = 29 and p <= 3 ) then
+    X(c,d,p,r) = 0
+  end-if
+end-do
+
+
+
+minimize(total_penalty)
+
+
+
+!output
+writeln
+writeln("******* The minimum total penalty is ", getobjval, " *******")
+writeln
+forall(c in course, d in day, p in period, r in room) do
+  if( getsol(X(c,d,p,r)) > 0 ) then
+    writeln("Assign course ", course_name(c), " to day ", d, " period ", p, " in room ", room_name(r))
+  end-if
+end-do
+
+end-model

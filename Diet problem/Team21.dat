@@ -1,0 +1,11 @@
+drinks_name: ["Azyr Orange" "Azyr Lemon" "Soda Tres" "Soda Siete"]
+ingredints_name: ["Orange" "Lemon" "Sugar" "Mineral Water" "Strawberry"]
+retailers_name: ["Tesry" "Sainsco"]
+ingredints_limit: [500 400 800 2000 300]
+demand: [0.3 0   0.2 1   0.1
+         0   0.2 0.3 1.2 0
+         0.2 0.2 0.2 1.2 0.1
+         0.1 0.1 0.3 1.5 0.3]
+requirement: [140 210 350 105
+              175 105 280 140]
+profit: [0.8 0.8 0.9 1.1]

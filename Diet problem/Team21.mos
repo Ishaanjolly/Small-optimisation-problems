@@ -1,0 +1,61 @@
+! MMCS Assessment 01
+! Team 21
+! Song Feng (s2052211)
+! Ishaan Jolly (s1665110)
+! Finished Date : 2020-10-04
+! Due Date : 2020-10-09
+
+model Assessment01
+uses "mmxprs"
+
+declarations
+  number_of_drinks = 4
+  drinks = 1..number_of_drinks
+  drinks_name : array(drinks) of string
+
+  number_of_ingredints = 5
+  ingredints = 1..number_of_ingredints
+  ingredints_name : array(ingredints) of string
+
+  number_of_retailers = 2
+  retailers = 1..number_of_retailers
+  retailers_name : array(retailers) of string
+
+  ingredints_limit : array(ingredints) of real
+  demand : array(drinks, ingredints) of real
+  requirement : array(retailers, drinks) of real
+  profit : array(drinks) of real
+  make : array(retailers, drinks) of mpvar
+end-declarations
+
+initialisations from "SongFengA012020.dat"
+  ingredints_name retailers_name drinks_name ingredints_limit demand requirement profit
+end-initialisations
+
+!objective function
+total_profit := sum(r in retailers, d in drinks) profit(d) * make(r, d)
+
+!constraints
+
+!ingredints_constraint
+forall(i in ingredints) sum(r in retailers, d in drinks) demand(d, i) * make(r, d) <= ingredints_limit(i)
+
+!requirement_constraint
+forall(d in drinks, r in retailers) requirement(r, d) <= make(r, d)
+
+
+maximize(total_profit)
+
+
+!output
+writeln
+writeln("***Max total profit is ", getobjval, " pounds***")
+writeln
+forall(d in drinks) do
+  writeln("Scotbru's ideal weekly production of ", drinks_name(d), " is ", sum(r in retailers) getsol(make(r,d)), " litres.")
+  forall(r in retailers) do
+    writeln("       in which ", getsol(make(r,d)), " litres are produced for ", retailers_name(r), ".")
+  end-do
+end-do
+
+end-model

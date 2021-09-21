@@ -1,0 +1,91 @@
+model Assessment03
+  uses "mmxprs"
+
+declarations
+  region = 1..4
+  scenarios = 1..4
+  road_capacity : array(region, region) of real
+  demand : array(region, scenarios) of real
+  
+  largehouse : array(region) of mpvar  !binary variable indicate if we should built a large warehouse in region r
+  smallhouse : array(region) of mpvar  !binary variable indicate if we should built a small warehouse in region r
+  water_buy : array(region) of mpvar   !the amount of water we should buy and store in region r
+  remain : array(region, scenarios) of mpvar  !the amount of water remain in the region r after scenario s occured
+  transport : array(region, region, scenarios) of mpvar  !the amount of water transported from region i to region j after scenario s occured
+  
+end-declarations
+
+initialisations from "Team21_assessment03.dat"
+  road_capacity demand
+end-initialisations
+
+
+! objective function
+warehouse_cost := sum(r in region) (largehouse(r) * 500000 + smallhouse(r) * 200000)
+water_store_cost := sum(r in region) water_buy(r) * 700
+water_transport_cost := 0.3 * ( sum(i in region) transport(i,1,1) * 10 ) + 0.3 * ( sum(i in region) transport(i,2,2) * 10 ) + 0.3 * ( sum(i in region) transport(i,3,3) * 10 ) + 0.1 * ( sum(i in region) transport(i,4,4) * 10 )
+
+total_cost := warehouse_cost + water_store_cost + water_transport_cost
+
+! constraints
+
+! binary constraints
+forall(r in region) largehouse(r) is_binary
+forall(r in region) smallhouse(r) is_binary
+
+! there will be at most 1 warehouse in one region 
+forall(r in region) (largehouse(r) + smallhouse(r)) <= 1
+
+! the amount of water store must be less than the capacity of warehouse
+forall(r in region) water_buy(r) <= largehouse(r) * 10000 + smallhouse(r) * 3000
+
+! the amount of water remain after the disaster
+forall(r in region, s in scenarios) do
+  if (r = s) then
+    remain(r,s) = 0.5 * water_buy(r)
+  else
+    remain(r,s) = water_buy(r)
+  end-if
+end-do
+
+! transport constraints
+forall(i in region, j in region, s in scenarios) do
+  if (j = s) then                                 !if the scenario s impact the region j
+    transport(i,j,s) <= 0.5 * road_capacity(i,j)  !the water amount transported from i to j cannot excess 50% of the original road capacity
+    transport(i,j,s) <= remain(i,s)               !the water amount transported from i to j cannot excess the remaining amount of water in i
+  elif (j <> s) then
+    transport(i,j,s) = 0
+  end-if
+end-do
+
+! the amount of remain water plus the water transported to the impact region must greater than water demand
+forall(j in region, s in scenarios) do
+  if (j = s) then
+    remain(j,s) + sum(i in region) transport(i,j,s) >= demand(j,s)
+  end-if
+end-do
+
+minimize(total_cost)
+
+!output
+writeln
+writeln("*****the min total cost is ", getobjval, " pounds.*****")
+writeln
+forall(r in region) do
+  if (getsol(largehouse(r)) = 1) then
+    writeln("in region R", r, " you should open a large warehouse and store ", getsol(water_buy(r)), " units of water.")
+  elif (getsol(smallhouse(r)) = 1) then
+    writeln("in region R", r, " you should open a small warehouse and store ", getsol(water_buy(r)), " units of water.")
+  end-if
+end-do
+writeln
+forall(s in scenarios) do
+  writeln("under scenario D", s, ":")
+  forall(i in region, j in region) do
+    if(getsol(transport(i,j,s)) > 0) then
+      writeln("you need to transport ", getsol(transport(i,j,s)), " units of water from region R", i , " to region R", j ,".")
+    end-if
+  end-do
+end-do
+
+end-model
